@@ -11,7 +11,7 @@ import Point from 'ol/geom/Point';
 import { Style, Icon } from 'ol/style';
 
 // Координаты Самарской области
-const SAMARA_CENTER = [50.1002, 53.1959]; // [lon, lat]
+const SAMARA_CENTER = [50.1002, 53.1959];
 
 export default function MapView({ onStationSelect, stations = [] }) {
   const mapRef = useRef(null);

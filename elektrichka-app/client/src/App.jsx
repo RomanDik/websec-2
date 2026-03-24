@@ -5,7 +5,7 @@ import ScheduleList from './components/ScheduleList';
 import RouteSearch from './components/RouteSearch';
 import { getStationSchedule, getRouteSchedule, loadStationsList } from './api/yandexRasp';
 
-export default function App() {
+function App() {
   const [selectedStation, setSelectedStation] = useState(null);
   const [schedule, setSchedule] = useState([]);
   const [routeSchedule, setRouteSchedule] = useState([]);
@@ -13,85 +13,90 @@ export default function App() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    loadStationsList().then(setStations).catch(console.error);
-    window.__stationsCache = stations;
+    loadStationsList().then(stationsList => {
+      console.log('Загружено станций:', stationsList.length);
+      setStations(stationsList);
+      window.__stationsCache = stationsList;
+    });
   }, []);
 
-  // Загрузка расписания станции
   const loadStationSchedule = async (station) => {
+    console.log('Загрузка расписания для:', station);
     setLoading(true);
     try {
       const data = await getStationSchedule(station.code);
+      console.log('Получено рейсов:', data.length);
+      console.log('Данные:', data);
       setSchedule(data);
       setSelectedStation(station);
+      setRouteSchedule([]);
     } catch (err) {
+      console.error('Ошибка:', err);
       alert('Ошибка загрузки расписания');
     } finally {
       setLoading(false);
     }
   };
 
-  // Загрузка маршрута между станциями
   const loadRouteSchedule = async (from, to) => {
+    console.log('Загрузка маршрута:', from.title, '→', to.title);
     setLoading(true);
     try {
       const data = await getRouteSchedule(from.code, to.code);
+      console.log('Получено маршрутов:', data.length);
       setRouteSchedule(data);
+      setSelectedStation(null);
     } catch (err) {
+      console.error('Ошибка:', err);
       alert('Ошибка загрузки маршрута');
     } finally {
       setLoading(false);
     }
   };
 
+  console.log('App render, selectedStation:', selectedStation?.title, 'schedule.length:', schedule.length);
+
   return (
     <div className="container-fluid py-3">
-      <h1 className="h4 mb-3">⚡ Прибывалка: Электрички</h1>
+      <h1 className="h4 mb-3">Прибывалка: Электрички</h1>
       
-      {/* Поиск станции */}
       <StationSearch onSelect={loadStationSchedule} />
       
-      {/* Карта */}
-      <MapView 
-        onStationSelect={(coords) => {
-          const nearest = stations.reduce((prev, curr) => {
-            const dPrev = distance(coords, prev);
-            const dCurr = distance(coords, curr);
-            return dCurr < dPrev ? curr : prev;
-          });
-          if (nearest) loadStationSchedule(nearest);
-        }}
+      <RouteSearch 
         stations={stations}
+        onSearch={loadRouteSchedule}
       />
       
-      {/* Поиск маршрута между станциями */}
-      <RouteSearch stations={stations} onSearch={loadRouteSchedule} />
+      <MapView 
+        stations={stations}
+        onStationSelect={(coords) => {
+          console.log('Клик по карте:', coords);
+        }}
+      />
       
-      {/* Расписание станции */}
+      {loading && <div className="alert alert-info">Загрузка...</div>}
+      
       {selectedStation && (
         <ScheduleList 
           segments={schedule} 
-          title={`🚉 Расписание: ${selectedStation.title}`} 
+          title={'Расписание: ${selectedStation.title}'} 
         />
       )}
       
-      {/* Расписание маршрута */}
       {routeSchedule.length > 0 && (
         <ScheduleList 
           segments={routeSchedule} 
-          title="🔁 Маршрут между станциями" 
+          title={`Маршрут: ${routeSchedule[0]?.from?.title} → ${routeSchedule[0]?.to?.title}`} 
         />
       )}
       
-      {loading && <div className="text-center py-3">⏳ Загрузка...</div>}
+      {selectedStation && schedule.length === 0 && !loading && (
+        <div className="alert alert-warning">
+          Нет рейсов для станции {selectedStation.title} (код: {selectedStation.code})
+        </div>
+      )}
     </div>
   );
 }
 
-// Простая формула расстояния
-function distance(a, b) {
-  if (!a?.lat || !b?.latitude) return Infinity;
-  const dx = (a.lon || a.longitude) - (b.longitude);
-  const dy = (a.lat || a.latitude) - (b.latitude);
-  return Math.sqrt(dx*dx + dy*dy);
-}
+export default App;

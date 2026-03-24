@@ -5,45 +5,75 @@ export default function ScheduleList({ segments, title }) {
     return <div className="alert alert-info">Нет рейсов для отображения</div>;
   }
 
+  console.log('Первый сегмент:', segments[0]);
+  console.log('departure:', segments[0].departure);
+  console.log('arrival:', segments[0].arrival);
+
   return (
     <div className="card mb-3">
-      <div className="card-header">{title}</div>
+      <div className="card-header">
+        <strong>{title}</strong>
+      </div>
       <div className="list-group list-group-flush">
-        {segments.map((seg, idx) => (
-          <div key={idx} className="list-group-item">
-            <div className="d-flex justify-content-between align-items-center">
-              <div>
-                <strong>{seg.thread?.number || '—'}</strong>
-                <small className="d-block text-muted">
-                  {seg.from?.title} → {seg.to?.title}
-                </small>
-              </div>
-              <div className="text-end">
+        {segments.map((seg, idx) => {
+          const dep = seg.departure || seg.departure_time || seg.dep_time || seg.time;
+          const arr = seg.arrival || seg.arrival_time || seg.arr_time;
+          
+          const departureTime = formatTime(dep);
+          const arrivalTime = formatTime(arr);
+          const duration = formatDuration(seg.duration);
+          
+          return (
+            <div key={idx} className="list-group-item">
+              <div className="d-flex justify-content-between">
                 <div>
-                  <strong>{formatTime(seg.departure)}</strong>
-                  <small className="text-muted"> → {formatTime(seg.arrival)}</small>
+                  <strong>{seg.thread?.number || seg.number || '—'}</strong>
+                  <small className="d-block text-muted">
+                    {seg.from?.title} → {seg.to?.title}
+                  </small>
+                  {seg.stops && (
+                    <small className="d-block text-secondary mt-1">
+                      Остановки: {seg.stops}
+                    </small>
+                  )}
                 </div>
-                <small className="text-muted">
-                  {formatDuration(seg.duration)}
-                </small>
+                <div className="text-end">
+                  <div>
+                    <strong>{departureTime || '—'}</strong>
+                    <span className="text-muted mx-1">→</span>
+                    <strong>{arrivalTime || '—'}</strong>
+                  </div>
+                  <small className="text-muted">{duration || ''}</small>
+                </div>
               </div>
             </div>
-            {seg.stops && seg.stops !== '' && (
-              <small className="d-block text-secondary mt-1">
-                Остановки: {seg.stops}
-              </small>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
 }
 
-function formatTime(isoString) {
-  if (!isoString) return '—';
-  const date = new Date(isoString);
-  return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+function formatTime(dateString) {
+  if (!dateString) return null;
+  
+  if (typeof dateString === 'string' && /^\d{2}:\d{2}/.test(dateString)) {
+    return dateString.substring(0, 5);
+  }
+  
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return null;
+    }
+    
+    return date.toLocaleTimeString('ru-RU', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  } catch (e) {
+    return null;
+  }
 }
 
 function formatDuration(seconds) {

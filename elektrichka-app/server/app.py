@@ -3,106 +3,59 @@ from flask_cors import CORS
 import requests
 import os
 from dotenv import load_dotenv
-import time
-import jwt
-from datetime import datetime, timedelta
 
-# Загрузка переменных окружения
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
-# Конфигурация
-YANDEX_API = 'https://api.rasp.yandex-net.ru/v3.0'
-CLIENT_ID = os.getenv('YANDEX_CLIENT_ID')
-CLIENT_SECRET = os.getenv('YANDEX_CLIENT_SECRET')
+YANDEX_API = 'https://api.rasp.yandex.net/v3.0'
+API_KEY = os.getenv('YANDEX_API_KEY')
 PORT = int(os.getenv('PORT', 3001))
 
-# Кэш для токена
-cached_token = None
-token_expiry = None
-
-def get_yandex_token():
-    """Получение OAuth токена от Яндекса"""
-    global cached_token, token_expiry
-    
-    try:
-        # Создание JWT токена
-        payload = {
-            'client_id': CLIENT_ID,
-            'exp': datetime.utcnow() + timedelta(hours=1)
-        }
-        jwt_token = jwt.sign(payload, CLIENT_SECRET, algorithm='HS256')
-        
-        # Получения OAuth токена
-        response = requests.post(
-            'https://oauth.yandex.ru/token',
-            params={
-                'grant_type': 'client_credentials',
-                'client_id': CLIENT_ID,
-                'client_secret': CLIENT_SECRET
-            }
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            cached_token = data['access_token']
-            token_expiry = time.time() + 55 * 60 
-            return cached_token
-        else:
-            print(f"Ошибка получения токена: {response.text}")
-            return None
-            
-    except Exception as e:
-        print(f"Ошибка: {e}")
-        return None
-
-def get_valid_token():
-    """Получение валидного токена (из кэша или новый)"""
-    global cached_token, token_expiry
-    
-    if cached_token and token_expiry and time.time() < token_expiry:
-        return cached_token
-    
-    return get_yandex_token()
+print(f"\nAPI Key: {API_KEY[:8] if API_KEY else 'None'}...")
 
 @app.route('/api/rasp/<path:path>', methods=['GET'])
 def proxy_request(path):
-    """Прокси для запросов к Яндекс.Расписаниям"""
     try:
-        token = get_valid_token()
-        if not token:
-            return jsonify({'error': 'Ошибка авторизации'}), 500
-        
         params = dict(request.args)
         params['format'] = 'json'
         params['lang'] = 'ru_RU'
+        params['apikey'] = API_KEY
+        
+        print(f"\n{'='*60}")
+        print(f"ЗАПРОС: {path}")
+        print(f"Params: {params}")
         
         response = requests.get(
             f'{YANDEX_API}/{path}',
             params=params,
-            headers={
-                'Authorization': f'OAuth {token}',
-                'Accept-Language': 'ru_RU'
-            }
+            headers={'Accept-Language': 'ru_RU'},
+            timeout=120 
         )
         
+        print(f"Статус: {response.status_code}")
+        
         if response.status_code == 200:
+            print("УСПЕХ!")
             return jsonify(response.json())
         else:
-            return jsonify({'error': 'Ошибка запроса к Яндекс API'}), response.status_code
+            print(f"Ошибка {response.status_code}: {response.text[:200]}")
+            return jsonify({'error': response.text}), response.status_code
             
+    except requests.exceptions.Timeout:
+        print("Timeout - запрос превысил 120 секунд")
+        return jsonify({'error': 'Timeout'}), 504
     except Exception as e:
-        print(f"Proxy error: {e}")
+        print(f"Ошибка: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/health')
 def health():
-    """Проверка работоспособности сервера"""
-    return jsonify({'status': 'ok', 'client_id': CLIENT_ID[:8] + '...' if CLIENT_ID else None})
+    return jsonify({'status': 'ok', 'api': YANDEX_API})
 
 if __name__ == '__main__':
-    print(f"Proxy server running on http://localhost:{PORT}")
-    print(f"Client ID: {CLIENT_ID[:8] + '...' if CLIENT_ID else 'Not set'}")
+    print(f"\nServer: http://localhost:{PORT}")
     app.run(debug=True, port=PORT)

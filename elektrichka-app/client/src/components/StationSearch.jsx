@@ -1,26 +1,32 @@
 import React, { useState } from 'react';
-import { searchStations } from '../api/yandexRasp';
 
 export default function StationSearch({ onSelect }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
 
-  const handleSearch = async (e) => {
+  const handleSearch = (e) => {
     e.preventDefault();
-    if (query.length < 2) return;
+    console.log('🔍 Поиск:', query);
     
-    setLoading(true);
-    try {
-      const filtered = window.__stationsCache?.filter(s => 
-        s.title.toLowerCase().includes(query.toLowerCase()) &&
-        s.transport_type === 'suburban' // только электрички
-      ) || [];
-      setResults(filtered.slice(0, 10));
-    } catch (err) {
-      console.error('Search error:', err);
-    } finally {
-      setLoading(false);
+    if (!window.__stationsCache || query.length < 2) {
+      console.log('Станции не загружены');
+      return;
+    }
+    
+    const filtered = window.__stationsCache.filter(s => 
+      s.title.toLowerCase().includes(query.toLowerCase())
+    ).slice(0, 10);
+    
+    console.log('Найдено:', filtered.length);
+    setResults(filtered);
+  };
+
+  const handleSelect = (station) => {
+    console.log('Выбрана станция:', station);
+    setResults([]);
+    setQuery(station.title);
+    if (onSelect) {
+      onSelect(station);
     }
   };
 
@@ -30,27 +36,24 @@ export default function StationSearch({ onSelect }) {
         <input
           type="text"
           className="form-control"
-          placeholder="Название станции (напр. Самара)"
+          placeholder="Название станции"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <button type="submit" className="btn btn-primary" disabled={loading}>
-          {loading ? '🔍' : 'Найти'}
+        <button type="submit" className="btn btn-primary">
+          Найти
         </button>
       </form>
       
       {results.length > 0 && (
-        <ul className="list-group">
+        <ul className="list-group mt-2">
           {results.map(station => (
             <li 
               key={station.code} 
               className="list-group-item list-group-item-action"
-              onClick={() => onSelect(station)}
+              onClick={() => handleSelect(station)}
             >
               <strong>{station.title}</strong>
-              <small className="d-block text-muted">
-                {station.direction || 'Направление не указано'}
-              </small>
             </li>
           ))}
         </ul>

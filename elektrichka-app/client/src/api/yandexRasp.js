@@ -1,44 +1,62 @@
 import axios from 'axios';
 
-const API_BASE = 'http://localhost:3001/api/rasp'; 
+const API_BASE = 'http://localhost:3001/api/rasp';
 
-// Расписание по станции (только электрички)
 export async function getStationSchedule(stationCode, date = null) {
   const params = {
     format: 'json',
     lang: 'ru_RU',
-    station: stationCode, 
-    transport_types: 'suburban', 
+    station: stationCode,
+    transport_types: 'suburban',
     event: 'departure'
   };
   if (date) params.date = date;
   
-  const { data } = await axios.get(`${API_BASE}/schedule`, { params });
-  return data.segments || [];
+  try {
+    const { data } = await axios.get(`${API_BASE}/schedule`, { params });
+    console.log('📡 Ответ API:', data);
+    return data.schedule || [];
+  } catch (error) {
+    console.error('Ошибка загрузки расписания:', error);
+    return [];
+  }
 }
 
-// Расписание между двумя станциями
 export async function getRouteSchedule(fromCode, toCode, date = null) {
   const params = {
     format: 'json',
     lang: 'ru_RU',
     from: fromCode,
     to: toCode,
-    transport_types: 'suburban' 
+    transport_types: 'suburban'
   };
   if (date) params.date = date;
   
-  const { data } = await axios.get(`${API_BASE}/search`, { params });
-  return data.segments || [];
+  try {
+    const { data } = await axios.get(`${API_BASE}/search`, { params });
+    console.log('Ответ API маршрута:', data);
+    return data.segments || data.schedule || [];
+  } catch (error) {
+    console.error('Ошибка загрузки маршрута:', error);
+    return [];
+  }
 }
 
-// Загрузка списка станций
 export async function loadStationsList() {
-  const { data } = await axios.get(`${API_BASE}/stations_list`, {
-    params: { format: 'json', lang: 'ru_RU' }
-  });
-  
-  return extractSamaraStations(data.countries);
+  console.log('Загрузка stations_list...');
+  try {
+    const { data } = await axios.get(`${API_BASE}/stations_list`, {
+      params: { format: 'json', lang: 'ru_RU' },
+      timeout: 120000
+    });
+    
+    const stations = extractSamaraStations(data.countries);
+    console.log(`Загружено ${stations.length} станций из Самарской области`);
+    return stations;
+  } catch (error) {
+    console.error('Ошибка загрузки станций:', error);
+    return [];
+  }
 }
 
 function extractSamaraStations(countries) {
@@ -51,16 +69,14 @@ function extractSamaraStations(countries) {
   
   samaraRegion.settlements?.forEach(settlement => {
     settlement.stations?.forEach(station => {
-      if (station.transport_type === 'suburban' || station.transport_type === 'Поезд') {
-        stations.push({
-          code: station.codes?.yandex_code,
-          title: station.title,
-          latitude: station.latitude,
-          longitude: station.longitude,
-          direction: station.direction,
-          type: station.station_type
-        });
-      }
+      stations.push({
+        code: station.codes?.yandex_code,
+        title: station.title,
+        latitude: station.latitude,
+        longitude: station.longitude,
+        direction: station.direction,
+        type: station.station_type
+      });
     });
   });
   
