@@ -3,10 +3,10 @@ import ReactDOM from 'react-dom/client';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import App from './App';
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
   <React.StrictMode>
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
     <App />
   </React.StrictMode>
-
 );
+

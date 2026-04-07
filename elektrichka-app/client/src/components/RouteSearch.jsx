@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Card, Form, Button, Row, Col, ListGroup } from 'react-bootstrap';
 
 export default function RouteSearch({ stations, onSearch }) {
   const [fromStation, setFromStation] = useState('');
@@ -12,12 +13,12 @@ export default function RouteSearch({ stations, onSearch }) {
     const query = e.target.value;
     setFromStation(query);
     
-    if (query.length < 2 || !window.__stationsCache) {
+    if (query.length < 2 || !stations) {
       setFromResults([]);
       return;
     }
     
-    const filtered = window.__stationsCache.filter(s => 
+    const filtered = stations.filter(s => 
       s.title.toLowerCase().includes(query.toLowerCase())
     ).slice(0, 5);
     
@@ -28,12 +29,12 @@ export default function RouteSearch({ stations, onSearch }) {
     const query = e.target.value;
     setToStation(query);
     
-    if (query.length < 2 || !window.__stationsCache) {
+    if (query.length < 2 || !stations) {
       setToResults([]);
       return;
     }
     
-    const filtered = window.__stationsCache.filter(s => 
+    const filtered = stations.filter(s => 
       s.title.toLowerCase().includes(query.toLowerCase())
     ).slice(0, 5);
     
@@ -48,28 +49,27 @@ export default function RouteSearch({ stations, onSearch }) {
   };
 
   return (
-    <div className="card mb-3">
-      <div className="card-header">
+    <Card className="mb-3">
+      <Card.Header>
         <strong>Поиск маршрута между станциями</strong>
-      </div>
-      <div className="card-body">
-        <form onSubmit={handleSubmit}>
-          <div className="row g-3">
-            <div className="col-md-5">
-              <label className="form-label">Откуда:</label>
-              <input
+      </Card.Header>
+      <Card.Body>
+        <Form onSubmit={handleSubmit}>
+          <Row className="g-3">
+            <Col md={5}>
+              <Form.Label>Откуда:</Form.Label>
+              <Form.Control
                 type="text"
-                className="form-control"
                 placeholder="Начальная станция"
                 value={fromStation}
                 onChange={handleFromSearch}
               />
               {fromResults.length > 0 && (
-                <ul className="list-group mt-1">
+                <ListGroup className="mt-1">
                   {fromResults.map(station => (
-                    <li
+                    <ListGroup.Item
                       key={station.code}
-                      className="list-group-item list-group-item-action"
+                      action
                       onClick={() => {
                         setSelectedFrom(station);
                         setFromResults([]);
@@ -77,27 +77,26 @@ export default function RouteSearch({ stations, onSearch }) {
                       }}
                     >
                       {station.title}
-                    </li>
+                    </ListGroup.Item>
                   ))}
-                </ul>
+                </ListGroup>
               )}
-            </div>
+            </Col>
             
-            <div className="col-md-5">
-              <label className="form-label">Куда:</label>
-              <input
+            <Col md={5}>
+              <Form.Label>Куда:</Form.Label>
+              <Form.Control
                 type="text"
-                className="form-control"
                 placeholder="Конечная станция"
                 value={toStation}
                 onChange={handleToSearch}
               />
               {toResults.length > 0 && (
-                <ul className="list-group mt-1">
+                <ListGroup className="mt-1">
                   {toResults.map(station => (
-                    <li
+                    <ListGroup.Item
                       key={station.code}
-                      className="list-group-item list-group-item-action"
+                      action
                       onClick={() => {
                         setSelectedTo(station);
                         setToResults([]);
@@ -105,24 +104,25 @@ export default function RouteSearch({ stations, onSearch }) {
                       }}
                     >
                       {station.title}
-                    </li>
+                    </ListGroup.Item>
                   ))}
-                </ul>
+                </ListGroup>
               )}
-            </div>
+            </Col>
             
-            <div className="col-md-2 d-flex align-items-end">
-              <button 
+            <Col md={2} className="d-flex align-items-end">
+              <Button 
                 type="submit" 
-                className="btn btn-primary w-100"
+                variant="primary" 
+                className="w-100"
                 disabled={!selectedFrom || !selectedTo}
               >
                 Найти
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
+              </Button>
+            </Col>
+          </Row>
+        </Form>
+      </Card.Body>
+    </Card>
   );
 }

@@ -1,20 +1,29 @@
-import axios from 'axios';
+const API_BASE = process.env.REACT_APP_API_BASE;
 
-const API_BASE = 'http://localhost:3001/api/rasp';
+async function handleResponse(response) {
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(error || `HTTP error! status: ${response.status}`);
+  }
+  return response.json();
+}
+
 
 export async function getStationSchedule(stationCode, date = null) {
-  const params = {
+  const params = new URLSearchParams({
     format: 'json',
     lang: 'ru_RU',
     station: stationCode,
     transport_types: 'suburban',
     event: 'departure'
-  };
-  if (date) params.date = date;
+  });
+  
+  if (date) params.append('date', date);
   
   try {
-    const { data } = await axios.get(`${API_BASE}/schedule`, { params });
-    console.log('📡 Ответ API:', data);
+    const response = await fetch(`${API_BASE}/schedule?${params}`);
+    const data = await handleResponse(response);
+    console.log('Ответ API:', data);
     return data.schedule || [];
   } catch (error) {
     console.error('Ошибка загрузки расписания:', error);
@@ -23,17 +32,19 @@ export async function getStationSchedule(stationCode, date = null) {
 }
 
 export async function getRouteSchedule(fromCode, toCode, date = null) {
-  const params = {
+  const params = new URLSearchParams({
     format: 'json',
     lang: 'ru_RU',
     from: fromCode,
     to: toCode,
     transport_types: 'suburban'
-  };
-  if (date) params.date = date;
+  });
+  
+  if (date) params.append('date', date);
   
   try {
-    const { data } = await axios.get(`${API_BASE}/search`, { params });
+    const response = await fetch(`${API_BASE}/search?${params}`);
+    const data = await handleResponse(response);
     console.log('Ответ API маршрута:', data);
     return data.segments || data.schedule || [];
   } catch (error) {
@@ -43,13 +54,18 @@ export async function getRouteSchedule(fromCode, toCode, date = null) {
 }
 
 export async function loadStationsList() {
-  console.log('Загрузка stations_list...');
+  console.log('Загружаем stations_list...');
   try {
-    const { data } = await axios.get(`${API_BASE}/stations_list`, {
-      params: { format: 'json', lang: 'ru_RU' },
-      timeout: 120000
+    const params = new URLSearchParams({
+      format: 'json',
+      lang: 'ru_RU'
     });
     
+    const response = await fetch(`${API_BASE}/stations_list?${params}`, {
+      signal: AbortSignal.timeout(120000)
+    });
+    
+    const data = await handleResponse(response);
     const stations = extractSamaraStations(data.countries);
     console.log(`Загружено ${stations.length} станций из Самарской области`);
     return stations;
@@ -61,24 +77,26 @@ export async function loadStationsList() {
 
 function extractSamaraStations(countries) {
   const stations = [];
-  const russia = countries?.find(c => c.title === 'Россия');
-  if (!russia) return [];
   
-  const samaraRegion = russia.regions?.find(r => r.title === 'Самарская область');
-  if (!samaraRegion) return [];
-  
-  samaraRegion.settlements?.forEach(settlement => {
-    settlement.stations?.forEach(station => {
-      stations.push({
-        code: station.codes?.yandex_code,
-        title: station.title,
-        latitude: station.latitude,
-        longitude: station.longitude,
-        direction: station.direction,
-        type: station.station_type
-      });
+  countries?.forEach(country => {
+    country.regions?.forEach(region => {
+      if (region.esr_code === '63' || region.esr_code === 63) {
+        region.settlements?.forEach(settlement => {
+          settlement.stations?.forEach(station => {
+            stations.push({
+              code: station.codes?.yandex_code,
+              title: station.title,
+              latitude: station.latitude,
+              longitude: station.longitude,
+              direction: station.direction,
+              type: station.station_type
+            });
+          });
+        });
+      }
     });
   });
   
+  console.log(`Найдено станций в Самарской области: ${stations.length}`);
   return stations;
 }

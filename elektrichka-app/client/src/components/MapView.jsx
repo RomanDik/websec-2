@@ -8,71 +8,96 @@ import VectorSource from 'ol/source/Vector';
 import { fromLonLat } from 'ol/proj';
 import { Feature } from 'ol';
 import Point from 'ol/geom/Point';
-import { Style, Icon } from 'ol/style';
+import { Style, Icon, Fill, Stroke, Text } from 'ol/style';
 
-// Координаты Самарской области
-const SAMARA_CENTER = [50.1002, 53.1959];
+const MAP_CENTER = [
+  parseFloat(process.env.REACT_APP_MAP_CENTER_LON),
+  parseFloat(process.env.REACT_APP_MAP_CENTER_LAT)
+];
+
+const MAP_ZOOM = parseInt(process.env.REACT_APP_MAP_ZOOM);
 
 export default function MapView({ onStationSelect, stations = [] }) {
   const mapRef = useRef(null);
   const vectorSourceRef = useRef(null);
 
   useEffect(() => {
+    if (!mapRef.current) return;
+
     const vectorSource = new VectorSource();
     vectorSourceRef.current = vectorSource;
+    const vectorLayer = new VectorLayer({
+      source: vectorSource,
+      style: new Style({
+        image: new Icon({
+          anchor: [0.5, 1],
+          src: 'https://openlayers.org/en/latest/examples/data/icon.png',
+          scale: 0.8
+        }),
+        text: new Text({
+          text: '',
+          offsetY: -25,
+          fill: new Fill({ color: '#000' }),
+          stroke: new Stroke({ color: '#fff', width: 2 }),
+          font: '12px sans-serif'
+        })
+      })
+    });
 
     const map = new Map({
       target: mapRef.current,
       layers: [
-        new TileLayer({ source: new OSM() }),
-        new VectorLayer({ source: vectorSource, style: stationStyle })
+        new TileLayer({
+          source: new OSM()
+        }),
+        vectorLayer 
       ],
       view: new View({
-        center: fromLonLat(SAMARA_CENTER),
-        zoom: 8,
+        center: fromLonLat(MAP_CENTER),
+        zoom: MAP_ZOOM,
         minZoom: 6,
-        maxZoom: 15
+        maxZoom: 16
       })
     });
 
-    // Обработчик клика по карте
-    map.on('singleclick', (evt) => {
-      const coord = evt.coordinate; 
-      const lonLat = map.getView().getProjection().getUnits() === 'degrees' 
-        ? coord 
-        : fromLonLat(coord, 'EPSG:3857', 'EPSG:4326'); 
-      onStationSelect?.({ lat: lonLat[1], lon: lonLat[0], fromMap: true });
-    });
+    useEffect(() => {
+      if (!vectorSourceRef.current) return;
+      
+      vectorSourceRef.current.clear();
+      
+      stations.forEach(station => {
+        if (station.latitude && station.longitude) {
+          const feature = new Feature({
+            geometry: new Point(fromLonLat([station.longitude, station.latitude])),
+            title: station.title,
+            code: station.code
+          });
 
-    return () => map.setTarget(null);
-  }, [onStationSelect]);
-
-  // Обновление маркеров станций
-  useEffect(() => {
-    if (!vectorSourceRef.current) return;
-    vectorSourceRef.current.clear();
+          feature.setStyle(new Style({
+            image: new Icon({
+              anchor: [0.5, 1],
+              src: 'https://openlayers.org/en/latest/examples/data/icon.png',
+              scale: 0.8
+            })
+          }));
+          
+          vectorSourceRef.current.addFeature(feature);
+        }
+      });
+    }, [stations]);
     
-    stations.forEach(station => {
-      if (station.latitude && station.longitude) {
-        const feature = new Feature({
-          geometry: new Point(fromLonLat([station.longitude, station.latitude])),
-          title: station.title,
-          code: station.code
-        });
-        feature.setStyle(stationStyle);
-        vectorSourceRef.current.addFeature(feature);
-      }
-    });
-  }, [stations]);
+  }, []);
 
-  return <div ref={mapRef} className="map-container" style={{ height: '400px', width: '100%' }} />;
+  return (
+    <div 
+      ref={mapRef} 
+      className="map-container mb-3"
+      style={{ 
+        height: '400px', 
+        width: '100%',
+        border: '1px solid #ddd',
+        borderRadius: '8px'
+      }} 
+    />
+  );
 }
-
-// Стиль маркера станции
-const stationStyle = new Style({
-  image: new Icon({
-    anchor: [0.5, 1],
-    src: 'https://openlayers.org/en/latest/examples/data/icon.png',
-    scale: 0.8
-  })
-});

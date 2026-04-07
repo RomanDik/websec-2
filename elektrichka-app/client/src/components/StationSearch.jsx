@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
+import { Form, Button, ListGroup } from 'react-bootstrap';
 
-export default function StationSearch({ onSelect }) {
+export default function StationSearch({ stations, onSelect }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
 
   const handleSearch = (e) => {
     e.preventDefault();
-    console.log('🔍 Поиск:', query);
+    console.log('Поиск:', query);
     
-    if (!window.__stationsCache || query.length < 2) {
+    if (!stations || query.length < 2) {
       console.log('Станции не загружены');
       return;
     }
     
-    const filtered = window.__stationsCache.filter(s => 
+    const filtered = stations.filter(s => 
       s.title.toLowerCase().includes(query.toLowerCase())
     ).slice(0, 10);
     
@@ -32,31 +33,30 @@ export default function StationSearch({ onSelect }) {
 
   return (
     <div className="mb-3">
-      <form onSubmit={handleSearch} className="d-flex gap-2">
-        <input
+      <Form onSubmit={handleSearch} className="d-flex gap-2">
+        <Form.Control
           type="text"
-          className="form-control"
-          placeholder="Название станции"
+          placeholder="Название станции (напр. Самара)"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <button type="submit" className="btn btn-primary">
+        <Button type="submit" variant="primary">
           Найти
-        </button>
-      </form>
+        </Button>
+      </Form>
       
       {results.length > 0 && (
-        <ul className="list-group mt-2">
+        <ListGroup className="mt-2">
           {results.map(station => (
-            <li 
+            <ListGroup.Item 
               key={station.code} 
-              className="list-group-item list-group-item-action"
+              action
               onClick={() => handleSelect(station)}
             >
               <strong>{station.title}</strong>
-            </li>
+            </ListGroup.Item>
           ))}
-        </ul>
+        </ListGroup>
       )}
     </div>
   );

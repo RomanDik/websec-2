@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Container, Row, Col, Form, Button, Card, Alert } from 'react-bootstrap';
 import StationSearch from './components/StationSearch';
 import MapView from './components/MapView';
 import ScheduleList from './components/ScheduleList';
@@ -16,7 +17,6 @@ function App() {
     loadStationsList().then(stationsList => {
       console.log('Загружено станций:', stationsList.length);
       setStations(stationsList);
-      window.__stationsCache = stationsList;
     });
   }, []);
 
@@ -26,7 +26,6 @@ function App() {
     try {
       const data = await getStationSchedule(station.code);
       console.log('Получено рейсов:', data.length);
-      console.log('Данные:', data);
       setSchedule(data);
       setSelectedStation(station);
       setRouteSchedule([]);
@@ -54,13 +53,14 @@ function App() {
     }
   };
 
-  console.log('App render, selectedStation:', selectedStation?.title, 'schedule.length:', schedule.length);
-
   return (
-    <div className="container-fluid py-3">
+    <Container fluid className="py-3">
       <h1 className="h4 mb-3">Прибывалка: Электрички</h1>
       
-      <StationSearch onSelect={loadStationSchedule} />
+      <StationSearch 
+        stations={stations}
+        onSelect={loadStationSchedule} 
+      />
       
       <RouteSearch 
         stations={stations}
@@ -74,28 +74,29 @@ function App() {
         }}
       />
       
-      {loading && <div className="alert alert-info">Загрузка...</div>}
+      {loading && <Alert variant="info">Загрузка...</Alert>}
       
       {selectedStation && (
         <ScheduleList 
           segments={schedule} 
-          title={'Расписание: ${selectedStation.title}'} 
+          station={selectedStation}
         />
       )}
       
       {routeSchedule.length > 0 && (
         <ScheduleList 
           segments={routeSchedule} 
-          title={`Маршрут: ${routeSchedule[0]?.from?.title} → ${routeSchedule[0]?.to?.title}`} 
+          fromStation={routeSchedule[0]?.from}
+          toStation={routeSchedule[0]?.to}
         />
       )}
       
       {selectedStation && schedule.length === 0 && !loading && (
-        <div className="alert alert-warning">
+        <Alert variant="warning">
           Нет рейсов для станции {selectedStation.title} (код: {selectedStation.code})
-        </div>
+        </Alert>
       )}
-    </div>
+    </Container>
   );
 }
 
