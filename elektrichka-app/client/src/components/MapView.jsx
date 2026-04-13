@@ -6,9 +6,8 @@ import OSM from 'ol/source/OSM';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import { fromLonLat } from 'ol/proj';
-import { Feature } from 'ol';
-import Point from 'ol/geom/Point';
-import { Style, Icon, Fill, Stroke, Text } from 'ol/style';
+import { Style, Icon } from 'ol/style';
+import { getSourceFromVectorLayerByName, clearMarkers, addStationMarker } from '../utils/mapHelpers';
 
 const MAP_CENTER = [
   parseFloat(process.env.REACT_APP_MAP_CENTER_LON),
@@ -17,7 +16,7 @@ const MAP_CENTER = [
 
 const MAP_ZOOM = parseInt(process.env.REACT_APP_MAP_ZOOM);
 
-export default function MapView({ onStationSelect, stations = [] }) {
+export default function MapView({ stations = [] }) {
   const mapRef = useRef(null);
   const vectorSourceRef = useRef(null);
 
@@ -26,23 +25,19 @@ export default function MapView({ onStationSelect, stations = [] }) {
 
     const vectorSource = new VectorSource();
     vectorSourceRef.current = vectorSource;
+
     const vectorLayer = new VectorLayer({
       source: vectorSource,
       style: new Style({
         image: new Icon({
           anchor: [0.5, 1],
-          src: 'https://openlayers.org/en/latest/examples/data/icon.png',
+          src: '/icons/marker.png', 
           scale: 0.8
-        }),
-        text: new Text({
-          text: '',
-          offsetY: -25,
-          fill: new Fill({ color: '#000' }),
-          stroke: new Stroke({ color: '#fff', width: 2 }),
-          font: '12px sans-serif'
         })
       })
     });
+
+    vectorLayer.set('name', 'stations');
 
     const map = new Map({
       target: mapRef.current,
@@ -50,7 +45,7 @@ export default function MapView({ onStationSelect, stations = [] }) {
         new TileLayer({
           source: new OSM()
         }),
-        vectorLayer 
+        vectorLayer
       ],
       view: new View({
         center: fromLonLat(MAP_CENTER),
@@ -60,33 +55,23 @@ export default function MapView({ onStationSelect, stations = [] }) {
       })
     });
 
-    useEffect(() => {
-      if (!vectorSourceRef.current) return;
-      
-      vectorSourceRef.current.clear();
-      
-      stations.forEach(station => {
-        if (station.latitude && station.longitude) {
-          const feature = new Feature({
-            geometry: new Point(fromLonLat([station.longitude, station.latitude])),
-            title: station.title,
-            code: station.code
-          });
+    mapRef.current.map = map;
 
-          feature.setStyle(new Style({
-            image: new Icon({
-              anchor: [0.5, 1],
-              src: 'https://openlayers.org/en/latest/examples/data/icon.png',
-              scale: 0.8
-            })
-          }));
-          
-          vectorSourceRef.current.addFeature(feature);
-        }
-      });
-    }, [stations]);
+    return () => {
+      map.setTarget(null);
+    };
     
-  }, []);
+  }, []); 
+
+  useEffect(() => {
+    if (!vectorSourceRef.current) return;
+    
+    clearMarkers(vectorSourceRef.current);
+    
+    stations.forEach(station => {
+      addStationMarker(vectorSourceRef.current, station);
+    });
+  }, [stations]); 
 
   return (
     <div 
