@@ -18,20 +18,17 @@ const MAP_ZOOM = parseInt(process.env.REACT_APP_MAP_ZOOM);
 
 export default function MapView({ stations = [] }) {
   const mapRef = useRef(null);
-  const vectorSourceRef = useRef(null);
-
   useEffect(() => {
     if (!mapRef.current) return;
 
     const vectorSource = new VectorSource();
-    vectorSourceRef.current = vectorSource;
 
     const vectorLayer = new VectorLayer({
       source: vectorSource,
       style: new Style({
         image: new Icon({
           anchor: [0.5, 1],
-          src: '/icons/marker.png', 
+          src: '/icons/marker.png',
           scale: 0.8
         })
       })
@@ -61,17 +58,18 @@ export default function MapView({ stations = [] }) {
       map.setTarget(null);
     };
     
-  }, []); 
+  }, []);
 
   useEffect(() => {
-    if (!vectorSourceRef.current) return;
+    const source = getSourceFromVectorLayerByName(mapRef.current?.map, 'stations');
+    if (!source) return;
     
-    clearMarkers(vectorSourceRef.current);
+    clearMarkers(source);
     
     stations.forEach(station => {
-      addStationMarker(vectorSourceRef.current, station);
+      addStationMarker(source, station);
     });
-  }, [stations]); 
+  }, [stations]);
 
   return (
     <div 
